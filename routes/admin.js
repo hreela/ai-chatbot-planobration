@@ -18,9 +18,22 @@ try {
   )
 
   if (supabaseUrl && supabaseKey && supabaseUrl.trim() !== "" && supabaseKey.trim() !== "") {
+    console.log("[v0] Attempting to create Supabase client...")
     const { createClient } = require("@supabase/supabase-js")
+    console.log("[v0] createClient function loaded successfully")
+
     supabase = createClient(supabaseUrl, supabaseKey)
-    console.log("[v0] Supabase client initialized successfully")
+    console.log("[v0] Supabase client created, testing connection...")
+
+    // Test the connection by making a simple query
+    const testResult = await supabase.from("chatbot_qa").select("count", { count: "exact", head: true })
+    if (testResult.error) {
+      console.log("[v0] Supabase connection test failed:", testResult.error.message)
+      console.log("[v0] Error details:", testResult.error)
+      supabase = null
+    } else {
+      console.log("[v0] Supabase client initialized and tested successfully")
+    }
   } else {
     console.log("[v0] Supabase environment variables not configured properly")
     console.log("[v0] URL valid:", !!(supabaseUrl && supabaseUrl.trim() !== ""))
@@ -28,6 +41,7 @@ try {
   }
 } catch (error) {
   console.error("[v0] Failed to initialize Supabase client:", error.message)
+  console.error("[v0] Full error:", error)
   supabase = null
 }
 
@@ -296,6 +310,8 @@ router.get("/debug", (req, res) => {
       urlLength: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.length : 0,
       keyLength: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.length : 0,
     },
+    supabaseUrlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 40) + "..." : null,
+    supabaseKeyPreview: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.substring(0, 20) + "..." : null,
   })
 })
 
