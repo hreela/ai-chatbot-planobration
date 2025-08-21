@@ -252,6 +252,8 @@ async function generateLocalResponse(message, conversationId = null) {
       }
     }
 
+    await saveUnansweredQuestion(message)
+
     // If no database answer, use local knowledge base
     const analysis = analyzeMessage(message)
     let response
@@ -263,11 +265,6 @@ async function generateLocalResponse(message, conversationId = null) {
       // Get random response from category
       const responses = TRAVEL_KNOWLEDGE.responses[analysis] || TRAVEL_KNOWLEDGE.responses.fallback
       response = responses[Math.floor(Math.random() * responses.length)]
-
-      // If using fallback response, save question to database for admin review
-      if (analysis === "fallback") {
-        await saveUnansweredQuestion(message)
-      }
     }
 
     // Store conversation
@@ -290,7 +287,7 @@ async function generateLocalResponse(message, conversationId = null) {
       source: "error",
     }
   }
-}
+} // Added missing closing brace for generateLocalResponse function
 
 async function generateResponse(message, conversationId = null) {
   return await generateLocalResponse(message, conversationId)
