@@ -1,11 +1,75 @@
 const express = require("express")
-const { createClient } = require("@supabase/supabase-js")
 const router = express.Router()
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+let supabase = null
+try {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_ANON_KEY
+
+  if (supabaseUrl && supabaseKey && supabaseUrl.trim() !== "" && supabaseKey.trim() !== "") {
+    const { createClient } = require("@supabase/supabase-js")
+    supabase = createClient(supabaseUrl, supabaseKey)
+    console.log("[v0] Supabase client initialized successfully")
+  } else {
+    console.log("[v0] Supabase environment variables not configured, admin features disabled")
+  }
+} catch (error) {
+  console.error("[v0] Failed to initialize Supabase client:", error.message)
+  supabase = null
+}
 
 // Admin dashboard HTML
 router.get("/", (req, res) => {
+  if (!supabase) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Planobration Chatbot Admin - Setup Required</title>
+          <style>
+              body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+              .container { max-width: 600px; margin: 50px auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+              .header { background: linear-gradient(135deg, #e11d48, #f43f5e); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+              .setup-steps { text-align: left; margin: 20px 0; }
+              .step { margin: 15px 0; padding: 15px; background: #f9fafb; border-radius: 6px; border-left: 4px solid #e11d48; }
+          </style>
+      </head>
+      <body>
+          <div class="container">
+              <div class="header">
+                  <h1>Admin Setup Required</h1>
+                  <p>Configure Supabase to enable the learning system</p>
+              </div>
+              
+              <p>Your chatbot is working, but the admin learning system needs Supabase configuration.</p>
+              
+              <div class="setup-steps">
+                  <div class="step">
+                      <strong>Step 1:</strong> Add these environment variables to your Render service:
+                      <ul>
+                          <li><code>SUPABASE_URL</code> - Your Supabase project URL</li>
+                          <li><code>SUPABASE_ANON_KEY</code> - Your Supabase anon key</li>
+                      </ul>
+                  </div>
+                  
+                  <div class="step">
+                      <strong>Step 2:</strong> Run the database setup script to create the required tables
+                  </div>
+                  
+                  <div class="step">
+                      <strong>Step 3:</strong> Restart your Render service
+                  </div>
+              </div>
+              
+              <p><strong>Your chatbot continues to work normally without this setup.</strong></p>
+          </div>
+      </body>
+      </html>
+    `)
+  }
+
   res.send(`
     <!DOCTYPE html>
     <html lang="en">
@@ -165,6 +229,10 @@ router.get("/", (req, res) => {
 
 // API endpoint to get questions
 router.get("/api/questions", async (req, res) => {
+  if (!supabase) {
+    return res.json([])
+  }
+
   try {
     const { data, error } = await supabase
       .from("chatbot_questions")
@@ -182,6 +250,10 @@ router.get("/api/questions", async (req, res) => {
 
 // API endpoint to save answer
 router.post("/api/answer", async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: "Supabase not configured" })
+  }
+
   try {
     const { id, answer } = req.body
 
