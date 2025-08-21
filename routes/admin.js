@@ -242,6 +242,15 @@ router.get("/api/questions", async (req, res) => {
 
   try {
     console.log("[v0] Admin API: Fetching questions from database...")
+
+    const { count, error: countError } = await supabase.from("chatbot_qa").select("*", { count: "exact", head: true })
+
+    console.log("[v0] Admin API: Total records in table:", count)
+
+    if (countError) {
+      console.error("[v0] Admin API: Count error:", countError)
+    }
+
     const { data, error } = await supabase
       .from("chatbot_qa")
       .select("*")
@@ -255,6 +264,16 @@ router.get("/api/questions", async (req, res) => {
 
     console.log("[v0] Admin API: Found", data?.length || 0, "questions")
     console.log("[v0] Admin API: Sample data:", data?.slice(0, 2))
+
+    const { data: allData, error: allError } = await supabase
+      .from("chatbot_qa")
+      .select("id, question, status, created_at")
+      .limit(5)
+
+    console.log("[v0] Admin API: Direct query result:", allData?.length || 0, "records")
+    if (allError) {
+      console.error("[v0] Admin API: Direct query error:", allError)
+    }
 
     res.json(data || [])
   } catch (error) {
