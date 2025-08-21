@@ -1,9 +1,3 @@
-const { OpenAI } = require("openai")
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 // Store conversations in memory (use Redis or database in production)
 const conversations = new Map()
 
