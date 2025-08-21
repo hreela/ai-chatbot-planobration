@@ -16,6 +16,8 @@ app.use(
 app.use(express.json())
 app.use(express.static("public"))
 
+app.use("/admin", require("./routes/admin"))
+
 // Routes
 app.use("/api/chat", require("./routes/chat"))
 app.use("/widget.js", require("./routes/widget"))
@@ -24,21 +26,6 @@ app.use("/widget.js", require("./routes/widget"))
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() })
 })
-
-// Root route - API status
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Planobration Chatbot API',
-    status: 'running',
-    endpoints: {
-      health: '/health',
-      chat: '/api/chat',
-      widget: '/widget.js'
-    },
-    timestamp: new Date().toISOString()
-  });
-});
-
 
 // Error handling middleware
 app.use((err, req, res, next) => {
