@@ -235,7 +235,7 @@ router.get("/api/questions", async (req, res) => {
 
   try {
     const { data, error } = await supabase
-      .from("chatbot_questions")
+      .from("chatbot_qa")
       .select("*")
       .order("frequency", { ascending: false })
       .order("created_at", { ascending: false })
@@ -258,7 +258,7 @@ router.post("/api/answer", async (req, res) => {
     const { id, answer } = req.body
 
     const { error } = await supabase
-      .from("chatbot_questions")
+      .from("chatbot_qa")
       .update({
         answer: answer,
         answered_at: new Date().toISOString(),
