@@ -7,85 +7,142 @@ const openai = new OpenAI({
 // Store conversations in memory (use Redis or database in production)
 const conversations = new Map()
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant for Planobration.com. 
-You should be professional, friendly, and knowledgeable about business planning and strategy.
-Keep responses concise and helpful. If you don't know something specific about Planobration, 
-direct users to contact the team directly.`
+// Local knowledge base for Planobration travel assistant
+const TRAVEL_KNOWLEDGE = {
+  destinations: {
+    india: {
+      cities: ["delhi", "mumbai", "goa", "kerala", "rajasthan", "agra", "jaipur"],
+      info: "India offers incredible diversity from the Taj Mahal in Agra to the backwaters of Kerala. Popular destinations include Delhi for history, Goa for beaches, and Rajasthan for palaces.",
+    },
+    china: {
+      cities: ["beijing", "shanghai", "hangzhou", "xian", "guangzhou"],
+      info: "China combines ancient history with modern marvels. Visit Beijing for the Great Wall, Shanghai for skylines, Hangzhou for West Lake, and Xi'an for the Terracotta Warriors.",
+    },
+    europe: {
+      cities: ["paris", "london", "rome", "barcelona", "amsterdam"],
+      info: "Europe offers rich history, diverse cultures, and stunning architecture. From Paris' romance to Rome's ancient wonders, each city tells a unique story.",
+    },
+  },
 
-async function generateResponse(message, conversationId = null) {
+  services: [
+    "travel planning",
+    "destination guides",
+    "itinerary creation",
+    "hotel booking assistance",
+    "flight recommendations",
+    "local experiences",
+    "cultural insights",
+    "budget planning",
+  ],
+
+  responses: {
+    greeting: [
+      "Hello! I'm your Planobration travel assistant. I can help you discover amazing destinations, plan itineraries, and provide travel insights. What adventure are you planning?",
+      "Welcome to Planobration! I'm here to help you explore the world. Whether you're looking for destination ideas, travel tips, or planning assistance, I've got you covered. How can I help?",
+      "Hi there! Ready to plan your next adventure? I can provide information about destinations, travel tips, and help you create memorable experiences. What interests you?",
+    ],
+
+    planobration: [
+      "Planobration is your trusted travel companion, specializing in creating personalized travel experiences. We help you discover hidden gems, plan perfect itineraries, and make your travel dreams reality.",
+      "Planobration offers comprehensive travel planning services including destination research, itinerary creation, and local insights to make your trips unforgettable.",
+      "At Planobration, we believe every journey should be extraordinary. We provide expert travel guidance, destination recommendations, and personalized planning services.",
+    ],
+
+    destinations: [
+      "I can help you explore amazing destinations! Are you interested in cultural experiences, adventure travel, beach destinations, or historical sites? Let me know your preferences.",
+      "There are so many incredible places to discover! I can provide insights about popular destinations like India, China, Europe, and many more. What type of experience are you looking for?",
+      "From bustling cities to serene landscapes, the world is full of amazing destinations. Tell me about your travel style and I'll suggest perfect places for you.",
+    ],
+
+    planning: [
+      "I'd love to help you plan your trip! Tell me your destination, travel dates, interests, and budget, and I'll provide personalized recommendations.",
+      "Great travel planning starts with understanding your preferences. What destination interests you, and what kind of experiences are you hoping to have?",
+      "Let's create an amazing itinerary for you! Share your destination ideas, travel style, and must-see attractions, and I'll help you plan the perfect trip.",
+    ],
+
+    fallback: [
+      "That's an interesting question! While I specialize in travel planning and destinations, I'm always learning. Could you tell me more about what you're looking for?",
+      "I'm focused on helping with travel and destination planning. If you have specific travel questions, I'd be happy to help! Otherwise, feel free to contact our team directly.",
+      "I'm here to help with travel-related questions and planning. Is there a specific destination or travel topic you'd like to explore?",
+    ],
+  },
+}
+
+function analyzeMessage(message) {
+  const lowerMessage = message.toLowerCase()
+
+  // Check for greetings
+  if (/^(hi|hello|hey|good morning|good afternoon|good evening)/.test(lowerMessage)) {
+    return "greeting"
+  }
+
+  // Check for Planobration-specific questions
+  if (/planobration|about you|who are you|what do you do/.test(lowerMessage)) {
+    return "planobration"
+  }
+
+  // Check for destination queries
+  if (/destination|place|country|city|visit|travel to|where/.test(lowerMessage)) {
+    return "destinations"
+  }
+
+  // Check for planning queries
+  if (/plan|itinerary|trip|vacation|holiday|book|recommend/.test(lowerMessage)) {
+    return "planning"
+  }
+
+  // Check for specific destinations
+  for (const [region, data] of Object.entries(TRAVEL_KNOWLEDGE.destinations)) {
+    if (lowerMessage.includes(region) || data.cities.some((city) => lowerMessage.includes(city))) {
+      return { type: "destination_info", region, data }
+    }
+  }
+
+  return "fallback"
+}
+
+function generateLocalResponse(message, conversationId = null) {
   try {
-    console.log("[v0] OpenAI API Key exists:", !!process.env.OPENAI_API_KEY)
-    console.log("[v0] OpenAI API Key length:", process.env.OPENAI_API_KEY?.length || 0)
-
-    // Create or retrieve conversation
+    // Create conversation ID if not provided
     if (!conversationId) {
-      conversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      conversationId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }
 
+    // Analyze the message
+    const analysis = analyzeMessage(message)
+    let response
+
+    if (typeof analysis === "object" && analysis.type === "destination_info") {
+      // Specific destination information
+      response = `${analysis.data.info} Would you like specific recommendations for ${analysis.region} or help planning an itinerary?`
+    } else {
+      // Get random response from category
+      const responses = TRAVEL_KNOWLEDGE.responses[analysis] || TRAVEL_KNOWLEDGE.responses.fallback
+      response = responses[Math.floor(Math.random() * responses.length)]
+    }
+
+    // Store conversation
     const conversation = conversations.get(conversationId) || []
-
-    // Add user message to conversation
-    conversation.push({ role: "user", content: message })
-
-    // Prepare messages for OpenAI
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...conversation.slice(-10), // Keep last 10 messages for context
-    ]
-
-    console.log("[v0] Making OpenAI request with messages:", messages.length)
-
-    // Generate response
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: messages,
-      max_tokens: 500,
-      temperature: 0.7,
-    })
-
-    console.log("[v0] OpenAI response received:", !!completion.choices[0])
-
-    const assistantMessage = completion.choices[0].message.content
-
-    // Add assistant response to conversation
-    conversation.push({ role: "assistant", content: assistantMessage })
-
-    // Store updated conversation (limit to last 20 messages)
-    conversations.set(conversationId, conversation.slice(-20))
+    conversation.push({ role: "user", content: message }, { role: "assistant", content: response })
+    conversations.set(conversationId, conversation.slice(-20)) // Keep last 20 messages
 
     return {
-      content: assistantMessage,
+      content: response,
       conversationId: conversationId,
     }
   } catch (error) {
-    console.error("[v0] AI Service Error details:", {
-      message: error.message,
-      code: error.code,
-      type: error.type,
-      status: error.status,
-    })
+    console.error("[v0] Local AI Service Error:", error.message)
 
-    if (error.code === "insufficient_quota" || error.status === 429) {
-      console.log("[v0] Using mock response due to OpenAI quota limit")
-
-      const mockResponses = [
-        "Welcome to Planobration! I'm here to help you with travel planning and destination information. What would you like to know about your next adventure?",
-        "Planobration offers comprehensive travel planning services. We can help you discover amazing destinations, plan itineraries, and make your travel dreams come true. How can I assist you today?",
-        "I'd be happy to help you with travel information! Planobration specializes in creating memorable travel experiences. What destination or travel topic interests you?",
-        "Thank you for using Planobration's travel assistant! While I'm currently experiencing high demand, I can still help with basic travel questions. What would you like to know?",
-        "Planobration is your trusted travel companion. We provide expert guidance on destinations, travel tips, and planning services. How can I help make your next trip amazing?",
-      ]
-
-      const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)]
-
-      return {
-        content: randomResponse,
-        conversationId: conversationId || `mock_${Date.now()}`,
-      }
+    return {
+      content:
+        "I apologize, but I'm experiencing some technical difficulties. Please try again or contact our support team for assistance.",
+      conversationId: conversationId || `error_${Date.now()}`,
     }
-
-    throw new Error("Failed to generate AI response")
   }
+}
+
+async function generateResponse(message, conversationId = null) {
+  return generateLocalResponse(message, conversationId)
 }
 
 // Clean up old conversations (run periodically)
