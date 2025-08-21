@@ -11,13 +11,27 @@ try {
   console.log("[v0] SUPABASE_ANON_KEY exists:", !!supabaseKey)
   console.log("[v0] SUPABASE_URL length:", supabaseUrl ? supabaseUrl.length : 0)
   console.log("[v0] SUPABASE_ANON_KEY length:", supabaseKey ? supabaseKey.length : 0)
+  console.log("[v0] SUPABASE_URL value:", supabaseUrl ? supabaseUrl.substring(0, 30) + "..." : "undefined")
+  console.log(
+    "[v0] All environment variables:",
+    Object.keys(process.env).filter((key) => key.includes("SUPABASE")),
+  )
 
   if (supabaseUrl && supabaseKey && supabaseUrl.trim() !== "" && supabaseKey.trim() !== "") {
     const { createClient } = require("@supabase/supabase-js")
     supabase = createClient(supabaseUrl, supabaseKey)
     console.log("[v0] Supabase client initialized successfully")
+
+    try {
+      const { data, error } = await supabase.from("chatbot_qa").select("count", { count: "exact", head: true })
+      console.log("[v0] Supabase connection test successful")
+    } catch (testError) {
+      console.log("[v0] Supabase connection test failed:", testError.message)
+    }
   } else {
-    console.log("[v0] Supabase environment variables not configured, admin features disabled")
+    console.log("[v0] Supabase environment variables not configured properly")
+    console.log("[v0] URL valid:", !!(supabaseUrl && supabaseUrl.trim() !== ""))
+    console.log("[v0] Key valid:", !!(supabaseKey && supabaseKey.trim() !== ""))
   }
 } catch (error) {
   console.error("[v0] Failed to initialize Supabase client:", error.message)
@@ -277,6 +291,19 @@ router.post("/api/answer", async (req, res) => {
     console.error("Error saving answer:", error)
     res.status(500).json({ error: "Failed to save answer" })
   }
+})
+
+// Debug endpoint to check environment variables
+router.get("/debug", (req, res) => {
+  res.json({
+    supabaseConfigured: !!supabase,
+    envVars: {
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+      urlLength: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.length : 0,
+      keyLength: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.length : 0,
+    },
+  })
 })
 
 module.exports = router
