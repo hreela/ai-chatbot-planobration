@@ -105,9 +105,9 @@ const TRAVEL_KNOWLEDGE = {
 }
 
 let supabase = null
-if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
   const { createClient } = require("@supabase/supabase-js")
-  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
 }
 
 function analyzeMessage(message) {
