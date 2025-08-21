@@ -160,7 +160,7 @@ router.get("/", (req, res) => {
                 container.innerHTML = questions.map(q => 
                     '<div class="question-item ' + (q.answer ? 'answered' : 'pending') + '" onclick="selectQuestion(' + q.id + ')">' +
                         '<strong>' + q.question + '</strong>' +
-                        (q.frequency > 1 ? '<span class="badge">' + q.frequency + 'x</span>' : '') +
+                        (q.question_count > 1 ? '<span class="badge">' + q.question_count + 'x</span>' : '') +
                         '<div style="font-size: 12px; color: #6b7280; margin-top: 5px;">' + 
                         new Date(q.created_at).toLocaleDateString() + '</div>' +
                     '</div>'
@@ -237,7 +237,7 @@ router.get("/api/questions", async (req, res) => {
     const { data, error } = await supabase
       .from("chatbot_qa")
       .select("*")
-      .order("frequency", { ascending: false })
+      .order("question_count", { ascending: false })
       .order("created_at", { ascending: false })
 
     if (error) throw error
