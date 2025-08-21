@@ -6,6 +6,12 @@ try {
   const supabaseUrl = process.env.SUPABASE_URL
   const supabaseKey = process.env.SUPABASE_ANON_KEY
 
+  console.log("[v0] Checking Supabase configuration...")
+  console.log("[v0] SUPABASE_URL exists:", !!supabaseUrl)
+  console.log("[v0] SUPABASE_ANON_KEY exists:", !!supabaseKey)
+  console.log("[v0] SUPABASE_URL length:", supabaseUrl ? supabaseUrl.length : 0)
+  console.log("[v0] SUPABASE_ANON_KEY length:", supabaseKey ? supabaseKey.length : 0)
+
   if (supabaseUrl && supabaseKey && supabaseUrl.trim() !== "" && supabaseKey.trim() !== "") {
     const { createClient } = require("@supabase/supabase-js")
     supabase = createClient(supabaseUrl, supabaseKey)
