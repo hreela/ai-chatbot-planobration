@@ -104,6 +104,12 @@ const TRAVEL_KNOWLEDGE = {
   },
 }
 
+let supabase = null
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const { createClient } = require("@supabase/supabase-js")
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+}
+
 function analyzeMessage(message) {
   const lowerMessage = message.toLowerCase()
 
@@ -162,14 +168,91 @@ function analyzeMessage(message) {
   return "fallback"
 }
 
-function generateLocalResponse(message, conversationId = null) {
+async function checkDatabaseAnswer(question) {
+  if (!supabase) {
+    return null
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("chatbot_qa")
+      .select("answer")
+      .eq("status", "answered")
+      .ilike("question", `%${question}%`)
+      .limit(1)
+      .single()
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 = no rows found
+      console.error("[v0] Database query error:", error)
+      return null
+    }
+
+    return data?.answer || null
+  } catch (error) {
+    console.error("[v0] Database connection error:", error)
+    return null
+  }
+}
+
+async function saveUnansweredQuestion(question) {
+  if (!supabase) {
+    console.log("[v0] Supabase not configured - question not saved:", question)
+    return
+  }
+
+  try {
+    // Check if question already exists
+    const { data: existing } = await supabase
+      .from("chatbot_qa")
+      .select("id, question_count")
+      .ilike("question", `%${question}%`)
+      .single()
+
+    if (existing) {
+      // Increment question count if similar question exists
+      await supabase
+        .from("chatbot_qa")
+        .update({
+          question_count: existing.question_count + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+    } else {
+      // Insert new question
+      await supabase.from("chatbot_qa").insert({
+        question: question,
+        status: "pending",
+      })
+    }
+  } catch (error) {
+    console.error("[v0] Error saving question to database:", error)
+  }
+}
+
+async function generateLocalResponse(message, conversationId = null) {
   try {
     // Create conversation ID if not provided
     if (!conversationId) {
       conversationId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }
 
-    // Analyze the message
+    // First, check if we have a database answer for this question
+    const databaseAnswer = await checkDatabaseAnswer(message)
+    if (databaseAnswer) {
+      // Store conversation
+      const conversation = conversations.get(conversationId) || []
+      conversation.push({ role: "user", content: message }, { role: "assistant", content: databaseAnswer })
+      conversations.set(conversationId, conversation.slice(-20))
+
+      return {
+        content: databaseAnswer,
+        conversationId: conversationId,
+        source: "database",
+      }
+    }
+
+    // If no database answer, use local knowledge base
     const analysis = analyzeMessage(message)
     let response
 
@@ -180,6 +263,11 @@ function generateLocalResponse(message, conversationId = null) {
       // Get random response from category
       const responses = TRAVEL_KNOWLEDGE.responses[analysis] || TRAVEL_KNOWLEDGE.responses.fallback
       response = responses[Math.floor(Math.random() * responses.length)]
+
+      // If using fallback response, save question to database for admin review
+      if (analysis === "fallback") {
+        await saveUnansweredQuestion(message)
+      }
     }
 
     // Store conversation
@@ -190,6 +278,7 @@ function generateLocalResponse(message, conversationId = null) {
     return {
       content: response,
       conversationId: conversationId,
+      source: "knowledge_base",
     }
   } catch (error) {
     console.error("[v0] Local AI Service Error:", error.message)
@@ -198,12 +287,13 @@ function generateLocalResponse(message, conversationId = null) {
       content:
         "I apologize, but I'm experiencing some technical difficulties. Please try again or contact our support team for assistance.",
       conversationId: conversationId || `error_${Date.now()}`,
+      source: "error",
     }
   }
 }
 
 async function generateResponse(message, conversationId = null) {
-  return generateLocalResponse(message, conversationId)
+  return await generateLocalResponse(message, conversationId)
 }
 
 // Clean up old conversations (run periodically)
