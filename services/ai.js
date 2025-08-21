@@ -22,6 +22,18 @@ const TRAVEL_KNOWLEDGE = {
       cities: ["paris", "london", "rome", "barcelona", "amsterdam"],
       info: "Europe offers rich history, diverse cultures, and stunning architecture. From Paris' romance to Rome's ancient wonders, each city tells a unique story.",
     },
+    asia: {
+      cities: ["tokyo", "seoul", "bangkok", "singapore", "kuala lumpur", "manila"],
+      info: "Asia offers incredible diversity from Tokyo's modern culture to Bangkok's temples. Experience cutting-edge technology, ancient traditions, and amazing cuisine.",
+    },
+    africa: {
+      cities: ["cairo", "cape town", "marrakech", "nairobi", "lagos"],
+      info: "Africa combines wildlife adventures, ancient history, and vibrant cultures. From Egyptian pyramids to African safaris, it's a continent of wonders.",
+    },
+    americas: {
+      cities: ["new york", "los angeles", "mexico city", "rio de janeiro", "buenos aires"],
+      info: "The Americas offer everything from bustling metropolises to natural wonders. Experience diverse cultures, stunning landscapes, and world-class cities.",
+    },
   },
 
   services: [
@@ -65,6 +77,36 @@ const TRAVEL_KNOWLEDGE = {
       "I'm focused on helping with travel and destination planning. If you have specific travel questions, I'd be happy to help! Otherwise, feel free to contact our team directly.",
       "I'm here to help with travel-related questions and planning. Is there a specific destination or travel topic you'd like to explore?",
     ],
+
+    budget: [
+      "I can help you plan a trip within your budget! What's your approximate budget range and preferred destination? I'll suggest cost-effective options.",
+      "Budget travel doesn't mean compromising on experiences! Tell me your budget and interests, and I'll recommend affordable destinations and money-saving tips.",
+      "Great question about budget planning! Share your budget range and travel style, and I'll help you maximize your travel experience.",
+    ],
+
+    weather: [
+      "Weather can make or break a trip! What destination and time of year are you considering? I'll provide weather insights and best travel times.",
+      "I can help you choose the perfect time to visit based on weather patterns. Which destination interests you and when are you planning to travel?",
+      "Weather planning is crucial! Tell me your destination and I'll share the best seasons to visit and what to expect.",
+    ],
+
+    food: [
+      "Food is one of the best parts of traveling! Are you interested in specific cuisines or looking for food experiences in a particular destination?",
+      "Culinary adventures await! I can recommend food experiences, local specialties, and dining tips for various destinations. What interests you?",
+      "Every destination has unique flavors to discover! Which cuisine or destination's food scene would you like to explore?",
+    ],
+
+    accommodation: [
+      "I can help you find the perfect place to stay! Are you looking for luxury hotels, budget options, unique experiences, or family-friendly accommodations?",
+      "Accommodation choice can enhance your travel experience! Tell me your destination, budget, and preferences, and I'll provide recommendations.",
+      "From boutique hotels to local homestays, there are many accommodation options! What type of experience are you looking for?",
+    ],
+
+    activities: [
+      "There are so many amazing activities to choose from! Are you interested in adventure sports, cultural experiences, nature activities, or city exploration?",
+      "I can suggest activities based on your interests! Tell me what you enjoy - outdoor adventures, museums, local experiences, or relaxation?",
+      "Every destination offers unique activities! What type of experiences excite you most - adventure, culture, nature, or entertainment?",
+    ],
   },
 }
 
@@ -89,6 +131,31 @@ function analyzeMessage(message) {
   // Check for planning queries
   if (/plan|itinerary|trip|vacation|holiday|book|recommend/.test(lowerMessage)) {
     return "planning"
+  }
+
+  // Check for budget queries
+  if (/budget|cost|price|cheap|expensive|afford|money/.test(lowerMessage)) {
+    return "budget"
+  }
+
+  // Check for weather queries
+  if (/weather|climate|temperature|rain|season|best time/.test(lowerMessage)) {
+    return "weather"
+  }
+
+  // Check for food queries
+  if (/food|cuisine|restaurant|eat|dining|local food|street food/.test(lowerMessage)) {
+    return "food"
+  }
+
+  // Check for accommodation queries
+  if (/hotel|accommodation|stay|lodge|resort|hostel|airbnb/.test(lowerMessage)) {
+    return "accommodation"
+  }
+
+  // Check for activity queries
+  if (/activity|activities|things to do|attractions|sightseeing|adventure/.test(lowerMessage)) {
+    return "activities"
   }
 
   // Check for specific destinations
