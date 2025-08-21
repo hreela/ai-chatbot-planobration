@@ -21,13 +21,6 @@ try {
     const { createClient } = require("@supabase/supabase-js")
     supabase = createClient(supabaseUrl, supabaseKey)
     console.log("[v0] Supabase client initialized successfully")
-
-    try {
-      const { data, error } = await supabase.from("chatbot_qa").select("count", { count: "exact", head: true })
-      console.log("[v0] Supabase connection test successful")
-    } catch (testError) {
-      console.log("[v0] Supabase connection test failed:", testError.message)
-    }
   } else {
     console.log("[v0] Supabase environment variables not configured properly")
     console.log("[v0] URL valid:", !!(supabaseUrl && supabaseUrl.trim() !== ""))
