@@ -236,20 +236,29 @@ router.get("/", (req, res) => {
 // API endpoint to get questions
 router.get("/api/questions", async (req, res) => {
   if (!supabase) {
+    console.log("[v0] Admin API: Supabase not configured")
     return res.json([])
   }
 
   try {
+    console.log("[v0] Admin API: Fetching questions from database...")
     const { data, error } = await supabase
       .from("chatbot_qa")
       .select("*")
       .order("question_count", { ascending: false })
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error("[v0] Admin API: Database error:", error)
+      throw error
+    }
+
+    console.log("[v0] Admin API: Found", data?.length || 0, "questions")
+    console.log("[v0] Admin API: Sample data:", data?.slice(0, 2))
+
     res.json(data || [])
   } catch (error) {
-    console.error("Error fetching questions:", error)
+    console.error("[v0] Admin API: Error fetching questions:", error)
     res.status(500).json({ error: "Failed to fetch questions" })
   }
 })
