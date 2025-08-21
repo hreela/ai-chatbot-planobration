@@ -9,39 +9,18 @@ try {
   console.log("[v0] Checking Supabase configuration...")
   console.log("[v0] SUPABASE_URL exists:", !!supabaseUrl)
   console.log("[v0] SUPABASE_ANON_KEY exists:", !!supabaseKey)
-  console.log("[v0] SUPABASE_URL length:", supabaseUrl ? supabaseUrl.length : 0)
-  console.log("[v0] SUPABASE_ANON_KEY length:", supabaseKey ? supabaseKey.length : 0)
-  console.log("[v0] SUPABASE_URL value:", supabaseUrl ? supabaseUrl.substring(0, 30) + "..." : "undefined")
-  console.log(
-    "[v0] All environment variables:",
-    Object.keys(process.env).filter((key) => key.includes("SUPABASE")),
-  )
 
   if (supabaseUrl && supabaseKey && supabaseUrl.trim() !== "" && supabaseKey.trim() !== "") {
     console.log("[v0] Attempting to create Supabase client...")
     const { createClient } = require("@supabase/supabase-js")
-    console.log("[v0] createClient function loaded successfully")
 
     supabase = createClient(supabaseUrl, supabaseKey)
-    console.log("[v0] Supabase client created, testing connection...")
-
-    // Test the connection by making a simple query
-    const testResult = await supabase.from("chatbot_qa").select("count", { count: "exact", head: true })
-    if (testResult.error) {
-      console.log("[v0] Supabase connection test failed:", testResult.error.message)
-      console.log("[v0] Error details:", testResult.error)
-      supabase = null
-    } else {
-      console.log("[v0] Supabase client initialized and tested successfully")
-    }
+    console.log("[v0] Supabase client created successfully")
   } else {
     console.log("[v0] Supabase environment variables not configured properly")
-    console.log("[v0] URL valid:", !!(supabaseUrl && supabaseUrl.trim() !== ""))
-    console.log("[v0] Key valid:", !!(supabaseKey && supabaseKey.trim() !== ""))
   }
 } catch (error) {
   console.error("[v0] Failed to initialize Supabase client:", error.message)
-  console.error("[v0] Full error:", error)
   supabase = null
 }
 
