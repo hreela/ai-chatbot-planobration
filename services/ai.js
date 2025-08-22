@@ -196,37 +196,53 @@ async function checkDatabaseAnswer(question) {
 }
 
 async function saveUnansweredQuestion(question) {
+  console.log("[v0] AI Service: Attempting to save question:", question)
+
   if (!supabase) {
     console.log("[v0] Supabase not configured - question not saved:", question)
     return
   }
 
+  console.log("[v0] AI Service: Supabase client exists, proceeding with save")
+
   try {
+    console.log("[v0] AI Service: Checking for existing question...")
+
     // Check if question already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from("chatbot_qa")
       .select("id, question_count")
       .ilike("question", `%${question}%`)
       .single()
 
+    console.log("[v0] AI Service: Existing question check result:", { existing, selectError })
+
     if (existing) {
       // Increment question count if similar question exists
-      await supabase
+      console.log("[v0] AI Service: Updating existing question count")
+      const { data: updateData, error: updateError } = await supabase
         .from("chatbot_qa")
         .update({
           question_count: existing.question_count + 1,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id)
+
+      console.log("[v0] AI Service: Update result:", { updateData, updateError })
     } else {
       // Insert new question
-      await supabase.from("chatbot_qa").insert({
+      console.log("[v0] AI Service: Inserting new question")
+      const { data: insertData, error: insertError } = await supabase.from("chatbot_qa").insert({
         question: question,
         status: "pending",
       })
+
+      console.log("[v0] AI Service: Insert result:", { insertData, insertError })
     }
+
+    console.log("[v0] AI Service: Question save operation completed successfully")
   } catch (error) {
-    console.error("[v0] Error saving question to database:", error)
+    console.error("[v0] AI Service: Error saving question to database:", error)
   }
 }
 
