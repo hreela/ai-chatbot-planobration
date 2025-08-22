@@ -168,29 +168,202 @@ function analyzeMessage(message) {
   return "fallback"
 }
 
+function extractKeywords(message) {
+  const lowerMessage = message.toLowerCase()
+
+  // Remove common stop words
+  const stopWords = [
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "in",
+    "on",
+    "at",
+    "to",
+    "for",
+    "of",
+    "with",
+    "by",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "been",
+    "have",
+    "has",
+    "had",
+    "do",
+    "does",
+    "did",
+    "will",
+    "would",
+    "could",
+    "should",
+    "may",
+    "might",
+    "can",
+    "what",
+    "where",
+    "when",
+    "why",
+    "how",
+    "i",
+    "you",
+    "he",
+    "she",
+    "it",
+    "we",
+    "they",
+    "me",
+    "him",
+    "her",
+    "us",
+    "them",
+    "my",
+    "your",
+    "his",
+    "her",
+    "its",
+    "our",
+    "their",
+  ]
+
+  // Extract words and filter out stop words
+  const words = lowerMessage
+    .replace(/[^\w\s]/g, "") // Remove punctuation
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !stopWords.includes(word))
+
+  // Prioritize travel-related keywords
+  const travelKeywords = [
+    "delhi",
+    "mumbai",
+    "goa",
+    "agra",
+    "jaipur",
+    "kolkata",
+    "bangalore",
+    "chennai",
+    "hyderabad",
+    "pune",
+    "india",
+    "china",
+    "europe",
+    "asia",
+    "hotel",
+    "food",
+    "cost",
+    "budget",
+    "price",
+    "weather",
+    "best",
+    "time",
+    "visit",
+    "travel",
+    "trip",
+    "vacation",
+    "restaurant",
+    "accommodation",
+    "flight",
+    "train",
+    "transport",
+    "sightseeing",
+    "attractions",
+    "culture",
+    "history",
+    "beach",
+    "mountain",
+    "temple",
+    "palace",
+    "market",
+    "shopping",
+  ]
+
+  const prioritizedKeywords = words.filter((word) => travelKeywords.includes(word))
+  const otherKeywords = words.filter((word) => !travelKeywords.includes(word))
+
+  return [...prioritizedKeywords, ...otherKeywords].slice(0, 5) // Return top 5 keywords
+}
+
 async function checkDatabaseAnswer(question) {
   if (!supabase) {
     return null
   }
 
   try {
-    const { data, error } = await supabase
+    // First try exact match
+    const { data: exactMatch, error: exactError } = await supabase
       .from("chatbot_qa")
-      .select("answer")
+      .select("answer, question")
       .eq("status", "answered")
       .ilike("question", `%${question}%`)
       .limit(1)
-      .single()
 
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 = no rows found
-      console.error("[v0] Database query error:", error)
+    if (exactMatch && exactMatch.length > 0) {
+      return {
+        answer: exactMatch[0].answer,
+        matchType: "exact",
+        originalQuestion: exactMatch[0].question,
+      }
+    }
+
+    // If no exact match, try keyword-based search
+    const keywords = extractKeywords(question)
+    console.log("[v0] Extracted keywords:", keywords)
+
+    if (keywords.length === 0) {
       return null
     }
 
-    return data?.answer || null
+    // Search for answers containing any of the keywords
+    const keywordResults = []
+
+    for (const keyword of keywords) {
+      const { data: keywordData, error: keywordError } = await supabase
+        .from("chatbot_qa")
+        .select("answer, question")
+        .eq("status", "answered")
+        .or(`question.ilike.%${keyword}%,answer.ilike.%${keyword}%`)
+        .limit(3)
+
+      if (keywordData && keywordData.length > 0) {
+        keywordResults.push(
+          ...keywordData.map((item) => ({
+            ...item,
+            keyword: keyword,
+            relevance: keywords.indexOf(keyword) + 1, // Higher relevance for earlier keywords
+          })),
+        )
+      }
+    }
+
+    if (keywordResults.length > 0) {
+      // Sort by relevance and remove duplicates
+      const uniqueResults = keywordResults.reduce((acc, current) => {
+        const existing = acc.find((item) => item.question === current.question)
+        if (!existing || current.relevance < existing.relevance) {
+          return [...acc.filter((item) => item.question !== current.question), current]
+        }
+        return acc
+      }, [])
+
+      const bestMatch = uniqueResults.sort((a, b) => a.relevance - b.relevance)[0]
+
+      return {
+        answer: `Based on a similar question about "${bestMatch.keyword}": ${bestMatch.answer}`,
+        matchType: "keyword",
+        originalQuestion: bestMatch.question,
+        keyword: bestMatch.keyword,
+      }
+    }
+
+    return null
   } catch (error) {
-    console.error("[v0] Database connection error:", error)
+    console.error("[v0] Database query error:", error)
     return null
   }
 }
@@ -266,18 +439,21 @@ async function generateLocalResponse(message, conversationId = null) {
       conversationId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }
 
-    // First, check if we have a database answer for this question
-    const databaseAnswer = await checkDatabaseAnswer(message)
-    if (databaseAnswer) {
+    const databaseResult = await checkDatabaseAnswer(message)
+    if (databaseResult) {
       // Store conversation
       const conversation = conversations.get(conversationId) || []
-      conversation.push({ role: "user", content: message }, { role: "assistant", content: databaseAnswer })
+      conversation.push({ role: "user", content: message }, { role: "assistant", content: databaseResult.answer })
       conversations.set(conversationId, conversation.slice(-20))
 
+      console.log(`[v0] Found ${databaseResult.matchType} match for question:`, message)
+
       return {
-        content: databaseAnswer,
+        content: databaseResult.answer,
         conversationId: conversationId,
-        source: "database",
+        source: `database_${databaseResult.matchType}`,
+        originalQuestion: databaseResult.originalQuestion,
+        keyword: databaseResult.keyword,
       }
     }
 
