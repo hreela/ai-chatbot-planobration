@@ -150,19 +150,24 @@ router.get("/", (req, res) => {
             let questions = [];
             let selectedQuestionId = null;
             
+            console.log("[v0] Admin interface loaded");
+            
             async function loadQuestions() {
                 try {
+                    console.log("[v0] Loading questions...");
                     const response = await fetch('/admin/api/questions');
                     questions = await response.json();
+                    console.log("[v0] Loaded", questions.length, "questions");
                     renderQuestions();
                     updateStats();
                 } catch (error) {
-                    console.error('Error loading questions:', error);
+                    console.error('[v0] Error loading questions:', error);
                     document.getElementById('questions-list').innerHTML = '<p style="color: red;">Error loading questions. Please refresh the page.</p>';
                 }
             }
             
             function renderQuestions() {
+                console.log("[v0] Rendering questions...");
                 const container = document.getElementById('questions-list');
                 if (questions.length === 0) {
                     container.innerHTML = '<p>No questions yet.</p>';
@@ -179,9 +184,13 @@ router.get("/", (req, res) => {
                     '</div>';
                 }).join('');
                 
-                document.querySelectorAll('.question-item').forEach(item => {
+                const questionItems = document.querySelectorAll('.question-item');
+                console.log("[v0] Attaching click events to", questionItems.length, "question items");
+                
+                questionItems.forEach((item, index) => {
                     item.addEventListener('click', function() {
                         const questionId = parseInt(this.getAttribute('data-question-id'));
+                        console.log("[v0] Question clicked:", questionId, "at index:", index);
                         selectQuestion(questionId);
                     });
                 });
@@ -194,11 +203,18 @@ router.get("/", (req, res) => {
             }
             
             function selectQuestion(id) {
+                console.log("[v0] selectQuestion called with id:", id);
                 const question = questions.find(q => q.id === id);
-                if (!question) return;
+                if (!question) {
+                    console.error("[v0] Question not found with id:", id);
+                    return;
+                }
                 
+                console.log("[v0] Selected question:", question.question);
                 selectedQuestionId = id;
                 renderQuestions();
+                
+                console.log("[v0] Creating answer form for question:", question.question);
                 
                 document.getElementById('answer-section').innerHTML = 
                     '<div><strong>Question:</strong></div>' +
@@ -213,26 +229,35 @@ router.get("/", (req, res) => {
                 
                 setTimeout(() => {
                     const textarea = document.getElementById('answer-text');
-                    if (textarea) textarea.focus();
+                    if (textarea) {
+                        textarea.focus();
+                        console.log("[v0] Answer textarea focused");
+                    } else {
+                        console.error("[v0] Answer textarea not found");
+                    }
                 }, 100);
             }
             
             function clearSelection() {
+                console.log("[v0] Clearing selection");
                 selectedQuestionId = null;
                 renderQuestions();
                 document.getElementById('answer-section').innerHTML = '<p>Select a question from the left to provide an answer.</p>';
             }
             
             async function saveAnswer(id) {
+                console.log("[v0] saveAnswer called with id:", id);
                 const answer = document.getElementById('answer-text').value.trim();
                 const saveBtn = document.getElementById('save-btn');
                 const statusDiv = document.getElementById('save-status');
                 
                 if (!answer) {
+                    console.log("[v0] No answer provided");
                     statusDiv.innerHTML = '<p style="color: red;">Please provide an answer</p>';
                     return;
                 }
                 
+                console.log("[v0] Saving answer:", answer.substring(0, 50) + "...");
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'Saving...';
                 statusDiv.innerHTML = '<p style="color: #6b7280;">Saving answer...</p>';
@@ -245,6 +270,7 @@ router.get("/", (req, res) => {
                     });
                     
                     if (response.ok) {
+                        console.log("[v0] Answer saved successfully");
                         statusDiv.innerHTML = '<div class="success-message">Answer saved successfully!</div>';
                         await loadQuestions();
                         setTimeout(() => {
@@ -254,7 +280,7 @@ router.get("/", (req, res) => {
                         throw new Error('Failed to save answer');
                     }
                 } catch (error) {
-                    console.error('Error saving answer:', error);
+                    console.error('[v0] Error saving answer:', error);
                     statusDiv.innerHTML = '<p style="color: red;">Error saving answer. Please try again.</p>';
                     saveBtn.disabled = false;
                     saveBtn.textContent = 'Save Answer';
