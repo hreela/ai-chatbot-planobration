@@ -1,328 +1,325 @@
-// Store conversations in memory (use Redis or database in production)
-const conversations = new Map()
-
-// Local knowledge base for Planobration travel assistant
-const TRAVEL_KNOWLEDGE = {
-  destinations: {
-    india: {
-      cities: ["delhi", "mumbai", "goa", "kerala", "rajasthan", "agra", "jaipur"],
-      info: "India offers incredible diversity from the Taj Mahal in Agra to the backwaters of Kerala. Popular destinations include Delhi for history, Goa for beaches, and Rajasthan for palaces.",
-    },
-    china: {
-      cities: ["beijing", "shanghai", "hangzhou", "xian", "guangzhou"],
-      info: "China combines ancient history with modern marvels. Visit Beijing for the Great Wall, Shanghai for skylines, Hangzhou for West Lake, and Xi'an for the Terracotta Warriors.",
-    },
-    europe: {
-      cities: ["paris", "london", "rome", "barcelona", "amsterdam"],
-      info: "Europe offers rich history, diverse cultures, and stunning architecture. From Paris' romance to Rome's ancient wonders, each city tells a unique story.",
-    },
-    asia: {
-      cities: ["tokyo", "seoul", "bangkok", "singapore", "kuala lumpur", "manila"],
-      info: "Asia offers incredible diversity from Tokyo's modern culture to Bangkok's temples. Experience cutting-edge technology, ancient traditions, and amazing cuisine.",
-    },
-    africa: {
-      cities: ["cairo", "cape town", "marrakech", "nairobi", "lagos"],
-      info: "Africa combines wildlife adventures, ancient history, and vibrant cultures. From Egyptian pyramids to African safaris, it's a continent of wonders.",
-    },
-    americas: {
-      cities: ["new york", "los angeles", "mexico city", "rio de janeiro", "buenos aires"],
-      info: "The Americas offer everything from bustling metropolises to natural wonders. Experience diverse cultures, stunning landscapes, and world-class cities.",
-    },
-  },
-
-  services: [
-    "travel planning",
-    "destination guides",
-    "itinerary creation",
-    "hotel booking assistance",
-    "flight recommendations",
-    "local experiences",
-    "cultural insights",
-    "budget planning",
-  ],
-
-  responses: {
-    greeting: [
-      "Hello! I'm your Planobration travel assistant. I can help you discover amazing destinations, plan itineraries, and provide travel insights. What adventure are you planning?",
-      "Welcome to Planobration! I'm here to help you explore the world. Whether you're looking for destination ideas, travel tips, or planning assistance, I've got you covered. How can I help?",
-      "Hi there! Ready to plan your next adventure? I can provide information about destinations, travel tips, and help you create memorable experiences. What interests you?",
-    ],
-
-    planobration: [
-      "Planobration is your trusted travel companion, specializing in creating personalized travel experiences. We help you discover hidden gems, plan perfect itineraries, and make your travel dreams reality.",
-      "Planobration offers comprehensive travel planning services including destination research, itinerary creation, and local insights to make your trips unforgettable.",
-      "At Planobration, we believe every journey should be extraordinary. We provide expert travel guidance, destination recommendations, and personalized planning services.",
-    ],
-
-    destinations: [
-      "I can help you explore amazing destinations! Are you interested in cultural experiences, adventure travel, beach destinations, or historical sites? Let me know your preferences.",
-      "There are so many incredible places to discover! I can provide insights about popular destinations like India, China, Europe, and many more. What type of experience are you looking for?",
-      "From bustling cities to serene landscapes, the world is full of amazing destinations. Tell me about your travel style and I'll suggest perfect places for you.",
-    ],
-
-    planning: [
-      "I'd love to help you plan your trip! Tell me your destination, travel dates, interests, and budget, and I'll provide personalized recommendations.",
-      "Great travel planning starts with understanding your preferences. What destination interests you, and what kind of experiences are you hoping to have?",
-      "Let's create an amazing itinerary for you! Share your destination ideas, travel style, and must-see attractions, and I'll help you plan the perfect trip.",
-    ],
-
-    fallback: [
-      "That's an interesting question! While I specialize in travel planning and destinations, I'm always learning. Could you tell me more about what you're looking for?",
-      "I'm focused on helping with travel and destination planning. If you have specific travel questions, I'd be happy to help! Otherwise, feel free to contact our team directly.",
-      "I'm here to help with travel-related questions and planning. Is there a specific destination or travel topic you'd like to explore?",
-    ],
-
-    budget: [
-      "I can help you plan a trip within your budget! What's your approximate budget range and preferred destination? I'll suggest cost-effective options.",
-      "Budget travel doesn't mean compromising on experiences! Tell me your budget and interests, and I'll recommend affordable destinations and money-saving tips.",
-      "Great question about budget planning! Share your budget range and travel style, and I'll help you maximize your travel experience.",
-    ],
-
-    weather: [
-      "Weather can make or break a trip! What destination and time of year are you considering? I'll provide weather insights and best travel times.",
-      "I can help you choose the perfect time to visit based on weather patterns. Which destination interests you and when are you planning to travel?",
-      "Weather planning is crucial! Tell me your destination and I'll share the best seasons to visit and what to expect.",
-    ],
-
-    food: [
-      "Food is one of the best parts of traveling! Are you interested in specific cuisines or looking for food experiences in a particular destination?",
-      "Culinary adventures await! I can recommend food experiences, local specialties, and dining tips for various destinations. What interests you?",
-      "Every destination has unique flavors to discover! Which cuisine or destination's food scene would you like to explore?",
-    ],
-
-    accommodation: [
-      "I can help you find the perfect place to stay! Are you looking for luxury hotels, budget options, unique experiences, or family-friendly accommodations?",
-      "Accommodation choice can enhance your travel experience! Tell me your destination, budget, and preferences, and I'll provide recommendations.",
-      "From boutique hotels to local homestays, there are many accommodation options! What type of experience are you looking for?",
-    ],
-
-    activities: [
-      "There are so many amazing activities to choose from! Are you interested in adventure sports, cultural experiences, nature activities, or city exploration?",
-      "I can suggest activities based on your interests! Tell me what you enjoy - outdoor adventures, museums, local experiences, or relaxation?",
-      "Every destination offers unique activities! What type of experiences excite you most - adventure, culture, nature, or entertainment?",
-    ],
-  },
-}
+const express = require("express")
+const router = express.Router()
 
 let supabase = null
-if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-  const { createClient } = require("@supabase/supabase-js")
-  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY)
+try {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseKey = process.env.SUPABASE_ANON_KEY
+
+  console.log("[v0] Checking Supabase configuration...")
+  console.log("[v0] SUPABASE_URL exists:", !!supabaseUrl)
+  console.log("[v0] SUPABASE_ANON_KEY exists:", !!supabaseKey)
+
+  if (supabaseUrl && supabaseKey && supabaseUrl.trim() !== "" && supabaseKey.trim() !== "") {
+    console.log("[v0] Attempting to create Supabase client...")
+    const { createClient } = require("@supabase/supabase-js")
+
+    supabase = createClient(supabaseUrl, supabaseKey)
+    console.log("[v0] Supabase client created successfully")
+  } else {
+    console.log("[v0] Supabase environment variables not configured properly")
+  }
+} catch (error) {
+  console.error("[v0] Failed to initialize Supabase client:", error.message)
+  supabase = null
 }
 
-function analyzeMessage(message) {
-  const lowerMessage = message.toLowerCase()
-
-  // Check for greetings
-  if (/^(hi|hello|hey|good morning|good afternoon|good evening)/.test(lowerMessage)) {
-    return "greeting"
-  }
-
-  // Check for Planobration-specific questions
-  if (/planobration|about you|who are you|what do you do/.test(lowerMessage)) {
-    return "planobration"
-  }
-
-  // Check for destination queries
-  if (/destination|place|country|city|visit|travel to|where/.test(lowerMessage)) {
-    return "destinations"
-  }
-
-  // Check for planning queries
-  if (/plan|itinerary|trip|vacation|holiday|book|recommend/.test(lowerMessage)) {
-    return "planning"
-  }
-
-  // Check for budget queries
-  if (/budget|cost|price|cheap|expensive|afford|money/.test(lowerMessage)) {
-    return "budget"
-  }
-
-  // Check for weather queries
-  if (/weather|climate|temperature|rain|season|best time/.test(lowerMessage)) {
-    return "weather"
-  }
-
-  // Check for food queries
-  if (/food|cuisine|restaurant|eat|dining|local food|street food/.test(lowerMessage)) {
-    return "food"
-  }
-
-  // Check for accommodation queries
-  if (/hotel|accommodation|stay|lodge|resort|hostel|airbnb/.test(lowerMessage)) {
-    return "accommodation"
-  }
-
-  // Check for activity queries
-  if (/activity|activities|things to do|attractions|sightseeing|adventure/.test(lowerMessage)) {
-    return "activities"
-  }
-
-  // Check for specific destinations
-  for (const [region, data] of Object.entries(TRAVEL_KNOWLEDGE.destinations)) {
-    if (lowerMessage.includes(region) || data.cities.some((city) => lowerMessage.includes(city))) {
-      return { type: "destination_info", region, data }
-    }
-  }
-
-  return "fallback"
-}
-
-async function checkDatabaseAnswer(question) {
+// Admin dashboard HTML
+router.get("/", (req, res) => {
   if (!supabase) {
-    return null
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Planobration Chatbot Admin - Setup Required</title>
+          <style>
+              body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+              .container { max-width: 600px; margin: 50px auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+              .header { background: linear-gradient(135deg, #e11d48, #f43f5e); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+              .setup-steps { text-align: left; margin: 20px 0; }
+              .step { margin: 15px 0; padding: 15px; background: #f9fafb; border-radius: 6px; border-left: 4px solid #e11d48; }
+          </style>
+      </head>
+      <body>
+          <div class="container">
+              <div class="header">
+                  <h1>Admin Setup Required</h1>
+                  <p>Configure Supabase to enable the learning system</p>
+              </div>
+              
+              <p>Your chatbot is working, but the admin learning system needs Supabase configuration.</p>
+              
+              <div class="setup-steps">
+                  <div class="step">
+                      <strong>Step 1:</strong> Add these environment variables to your Render service:
+                      <ul>
+                          <li><code>SUPABASE_URL</code> - Your Supabase project URL</li>
+                          <li><code>SUPABASE_ANON_KEY</code> - Your Supabase anon key</li>
+                      </ul>
+                  </div>
+                  
+                  <div class="step">
+                      <strong>Step 2:</strong> Run the database setup script to create the required tables
+                  </div>
+                  
+                  <div class="step">
+                      <strong>Step 3:</strong> Restart your Render service
+                  </div>
+              </div>
+              
+              <p><strong>Your chatbot continues to work normally without this setup.</strong></p>
+          </div>
+      </body>
+      </html>
+    `)
+  }
+
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Planobration Chatbot Admin</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; background: #f5f5f5; }
+            .header { background: linear-gradient(135deg, #e11d48, #f43f5e); color: white; padding: 20px; text-align: center; }
+            .container { max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+            .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .question-item { padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s; }
+            .question-item:hover { background: #f9fafb; }
+            .question-item.pending { border-left: 4px solid #f59e0b; }
+            .question-item.answered { border-left: 4px solid #10b981; }
+            .badge { background: #e11d48; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 10px; }
+            .answer-form { display: none; }
+            .answer-form.active { display: block; }
+            textarea { width: 100%; height: 100px; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; resize: vertical; }
+            button { background: #e11d48; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+            button:hover { background: #be185d; }
+            .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+            .stat-card { background: white; padding: 15px; border-radius: 8px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .stat-number { font-size: 24px; font-weight: bold; color: #e11d48; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Planobration Chatbot Admin</h1>
+            <p>Manage visitor questions and train your chatbot</p>
+        </div>
+        
+        <div class="container">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="total-questions">0</div>
+                    <div>Total Questions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="pending-questions">0</div>
+                    <div>Pending Answers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="answered-questions">0</div>
+                    <div>Answered</div>
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="card">
+                    <h3>Visitor Questions</h3>
+                    <div id="questions-list">Loading questions...</div>
+                </div>
+                
+                <div class="card">
+                    <h3>Answer Question</h3>
+                    <div id="answer-section">
+                        <p>Select a question from the left to provide an answer.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let questions = [];
+            
+            async function loadQuestions() {
+                try {
+                    const response = await fetch('/admin/api/questions');
+                    questions = await response.json();
+                    renderQuestions();
+                    updateStats();
+                } catch (error) {
+                    console.error('Error loading questions:', error);
+                }
+            }
+            
+            function renderQuestions() {
+                const container = document.getElementById('questions-list');
+                if (questions.length === 0) {
+                    container.innerHTML = '<p>No questions yet.</p>';
+                    return;
+                }
+                
+                container.innerHTML = questions.map(q => 
+                    '<div class="question-item ' + (q.answer ? 'answered' : 'pending') + '" onclick="selectQuestion(' + q.id + ')">' +
+                        '<strong>' + q.question + '</strong>' +
+                        (q.question_count > 1 ? '<span class="badge">' + q.question_count + 'x</span>' : '') +
+                        '<div style="font-size: 12px; color: #6b7280; margin-top: 5px;">' + 
+                        new Date(q.created_at).toLocaleDateString() + '</div>' +
+                    '</div>'
+                ).join('');
+            }
+            
+            function selectQuestion(id) {
+                const question = questions.find(q => q.id === id);
+                if (!question) return;
+                
+                document.getElementById('answer-section').innerHTML = 
+                    '<div><strong>Question:</strong></div>' +
+                    '<p style="margin: 10px 0; padding: 10px; background: #f9fafb; border-radius: 6px;">' + question.question + '</p>' +
+                    '<div><strong>Your Answer:</strong></div>' +
+                    '<textarea id="answer-text" placeholder="Type your answer here...">' + (question.answer || '') + '</textarea>' +
+                    '<button onclick="saveAnswer(' + id + ')" style="margin-top: 10px;">Save Answer</button>';
+            }
+            
+            async function saveAnswer(id) {
+                const answer = document.getElementById('answer-text').value.trim();
+                if (!answer) {
+                    alert('Please provide an answer');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/admin/api/answer', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id, answer })
+                    });
+                    
+                    if (response.ok) {
+                        alert('Answer saved successfully!');
+                        loadQuestions();
+                        document.getElementById('answer-section').innerHTML = '<p>Answer saved! Select another question to continue.</p>';
+                    } else {
+                        alert('Error saving answer');
+                    }
+                } catch (error) {
+                    console.error('Error saving answer:', error);
+                    alert('Error saving answer');
+                }
+            }
+            
+            function updateStats() {
+                const total = questions.length;
+                const pending = questions.filter(q => !q.answer).length;
+                const answered = questions.filter(q => q.answer).length;
+                
+                document.getElementById('total-questions').textContent = total;
+                document.getElementById('pending-questions').textContent = pending;
+                document.getElementById('answered-questions').textContent = answered;
+            }
+            
+            // Load questions on page load
+            loadQuestions();
+            
+            // Refresh every 30 seconds
+            setInterval(loadQuestions, 30000);
+        </script>
+    </body>
+    </html>
+  `)
+})
+
+// API endpoint to get questions
+router.get("/api/questions", async (req, res) => {
+  if (!supabase) {
+    console.log("[v0] Admin API: Supabase not configured")
+    return res.json([])
   }
 
   try {
+    console.log("[v0] Admin API: Fetching questions from database...")
+
+    const { count, error: countError } = await supabase.from("chatbot_qa").select("*", { count: "exact", head: true })
+
+    console.log("[v0] Admin API: Total records in table:", count)
+
+    if (countError) {
+      console.error("[v0] Admin API: Count error:", countError)
+    }
+
     const { data, error } = await supabase
       .from("chatbot_qa")
-      .select("answer")
-      .eq("status", "answered")
-      .ilike("question", `%${question}%`)
-      .limit(1)
-      .single()
+      .select("*")
+      .order("question_count", { ascending: false })
+      .order("created_at", { ascending: false })
 
-    if (error && error.code !== "PGRST116") {
-      // PGRST116 = no rows found
-      console.error("[v0] Database query error:", error)
-      return null
+    if (error) {
+      console.error("[v0] Admin API: Database error:", error)
+      throw error
     }
 
-    return data?.answer || null
-  } catch (error) {
-    console.error("[v0] Database connection error:", error)
-    return null
-  }
-}
+    console.log("[v0] Admin API: Found", data?.length || 0, "questions")
+    console.log("[v0] Admin API: Sample data:", data?.slice(0, 2))
 
-async function saveUnansweredQuestion(question) {
-  console.log("[v0] AI Service: Attempting to save question:", question)
-
-  if (!supabase) {
-    console.log("[v0] Supabase not configured - question not saved:", question)
-    return
-  }
-
-  console.log("[v0] AI Service: Supabase client exists, proceeding with save")
-
-  try {
-    console.log("[v0] AI Service: Checking for existing question...")
-
-    // Check if question already exists
-    const { data: existing, error: selectError } = await supabase
+    const { data: allData, error: allError } = await supabase
       .from("chatbot_qa")
-      .select("id, question_count")
-      .ilike("question", `%${question}%`)
-      .single()
+      .select("id, question, status, created_at")
+      .limit(5)
 
-    console.log("[v0] AI Service: Existing question check result:", { existing, selectError })
-
-    if (existing) {
-      // Increment question count if similar question exists
-      console.log("[v0] AI Service: Updating existing question count")
-      const { data: updateData, error: updateError } = await supabase
-        .from("chatbot_qa")
-        .update({
-          question_count: existing.question_count + 1,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-
-      console.log("[v0] AI Service: Update result:", { updateData, updateError })
-    } else {
-      // Insert new question
-      console.log("[v0] AI Service: Inserting new question")
-      const { data: insertData, error: insertError } = await supabase.from("chatbot_qa").insert({
-        question: question,
-        status: "pending",
-      })
-
-      console.log("[v0] AI Service: Insert result:", { insertData, insertError })
+    console.log("[v0] Admin API: Direct query result:", allData?.length || 0, "records")
+    if (allError) {
+      console.error("[v0] Admin API: Direct query error:", allError)
     }
 
-    console.log("[v0] AI Service: Question save operation completed successfully")
+    res.json(data || [])
   } catch (error) {
-    console.error("[v0] AI Service: Error saving question to database:", error)
+    console.error("[v0] Admin API: Error fetching questions:", error)
+    res.status(500).json({ error: "Failed to fetch questions" })
   }
-}
+})
 
-async function generateLocalResponse(message, conversationId = null) {
+// API endpoint to save answer
+router.post("/api/answer", async (req, res) => {
+  if (!supabase) {
+    return res.status(503).json({ error: "Supabase not configured" })
+  }
+
   try {
-    // Create conversation ID if not provided
-    if (!conversationId) {
-      conversationId = `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    }
+    const { id, answer } = req.body
 
-    // First, check if we have a database answer for this question
-    const databaseAnswer = await checkDatabaseAnswer(message)
-    if (databaseAnswer) {
-      // Store conversation
-      const conversation = conversations.get(conversationId) || []
-      conversation.push({ role: "user", content: message }, { role: "assistant", content: databaseAnswer })
-      conversations.set(conversationId, conversation.slice(-20))
+    const { error } = await supabase
+      .from("chatbot_qa")
+      .update({
+        answer: answer,
+        answered_at: new Date().toISOString(),
+      })
+      .eq("id", id)
 
-      return {
-        content: databaseAnswer,
-        conversationId: conversationId,
-        source: "database",
-      }
-    }
-
-    await saveUnansweredQuestion(message)
-
-    // If no database answer, use local knowledge base
-    const analysis = analyzeMessage(message)
-    let response
-
-    if (typeof analysis === "object" && analysis.type === "destination_info") {
-      // Specific destination information
-      response = `${analysis.data.info} Would you like specific recommendations for ${analysis.region} or help planning an itinerary?`
-    } else {
-      // Get random response from category
-      const responses = TRAVEL_KNOWLEDGE.responses[analysis] || TRAVEL_KNOWLEDGE.responses.fallback
-      response = responses[Math.floor(Math.random() * responses.length)]
-    }
-
-    // Store conversation
-    const conversation = conversations.get(conversationId) || []
-    conversation.push({ role: "user", content: message }, { role: "assistant", content: response })
-    conversations.set(conversationId, conversation.slice(-20)) // Keep last 20 messages
-
-    return {
-      content: response,
-      conversationId: conversationId,
-      source: "knowledge_base",
-    }
+    if (error) throw error
+    res.json({ success: true })
   } catch (error) {
-    console.error("[v0] Local AI Service Error:", error.message)
-
-    return {
-      content:
-        "I apologize, but I'm experiencing some technical difficulties. Please try again or contact our support team for assistance.",
-      conversationId: conversationId || `error_${Date.now()}`,
-      source: "error",
-    }
+    console.error("Error saving answer:", error)
+    res.status(500).json({ error: "Failed to save answer" })
   }
-} // Added missing closing brace for generateLocalResponse function
+})
 
-async function generateResponse(message, conversationId = null) {
-  return await generateLocalResponse(message, conversationId)
-}
+// Debug endpoint to check environment variables
+router.get("/debug", (req, res) => {
+  res.json({
+    supabaseConfigured: !!supabase,
+    envVars: {
+      SUPABASE_URL: !!process.env.SUPABASE_URL,
+      SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
+      urlLength: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.length : 0,
+      keyLength: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.length : 0,
+    },
+    supabaseUrlPreview: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 40) + "..." : null,
+    supabaseKeyPreview: process.env.SUPABASE_ANON_KEY ? process.env.SUPABASE_ANON_KEY.substring(0, 20) + "..." : null,
+  })
+})
 
-// Clean up old conversations (run periodically)
-setInterval(
-  () => {
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000 // 24 hours ago
-    for (const [id] of conversations) {
-      const timestamp = Number.parseInt(id.split("_")[1])
-      if (timestamp < cutoff) {
-        conversations.delete(id)
-      }
-    }
-  },
-  60 * 60 * 1000,
-) // Run every hour
-
-module.exports = {
-  generateResponse,
-}
+module.exports = router
