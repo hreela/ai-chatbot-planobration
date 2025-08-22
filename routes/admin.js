@@ -241,18 +241,29 @@ router.get("/", (req, res) => {
                     '<div><strong>Your Answer:</strong></div>' +
                     '<textarea id="answer-text" placeholder="Type your detailed answer here..." style="margin: 10px 0;">' + (question.answer || '') + '</textarea>' +
                     '<div>' +
-                        '<button onclick="saveAnswer(' + questionIdForSave + ')" id="save-btn">Save Answer</button>' +
-                        '<button onclick="clearSelection()" style="background: #6b7280; margin-left: 10px;">Cancel</button>' +
+                        '<button id="save-btn">Save Answer</button>' +
+                        '<button id="cancel-btn" style="background: #6b7280; margin-left: 10px;">Cancel</button>' +
                     '</div>' +
                     '<div id="save-status"></div>';
                 
                 setTimeout(() => {
                     const textarea = document.getElementById('answer-text');
+                    const saveBtn = document.getElementById('save-btn');
+                    const cancelBtn = document.getElementById('cancel-btn');
+                    
                     if (textarea) {
                         textarea.focus();
                         console.log("[v0] Answer textarea focused");
-                    } else {
-                        console.error("[v0] Answer textarea not found");
+                    }
+                    
+                    if (saveBtn) {
+                        saveBtn.addEventListener('click', () => saveAnswer(questionIdForSave));
+                        console.log("[v0] Save button event listener attached for ID:", questionIdForSave);
+                    }
+                    
+                    if (cancelBtn) {
+                        cancelBtn.addEventListener('click', clearSelection);
+                        console.log("[v0] Cancel button event listener attached");
                     }
                 }, 100);
             }
