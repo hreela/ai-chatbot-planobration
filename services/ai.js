@@ -208,36 +208,49 @@ async function saveUnansweredQuestion(question) {
   try {
     console.log("[v0] AI Service: Checking for existing question...")
 
-    // Check if question already exists
     const { data: existing, error: selectError } = await supabase
       .from("chatbot_qa")
       .select("id, question_count")
       .ilike("question", `%${question}%`)
-      .single()
+      .limit(1)
 
     console.log("[v0] AI Service: Existing question check result:", { existing, selectError })
 
-    if (existing) {
+    if (selectError) {
+      console.error("[v0] AI Service: Error checking existing question:", selectError)
+    }
+
+    if (existing && existing.length > 0) {
+      const existingQuestion = existing[0]
       // Increment question count if similar question exists
       console.log("[v0] AI Service: Updating existing question count")
       const { data: updateData, error: updateError } = await supabase
         .from("chatbot_qa")
         .update({
-          question_count: existing.question_count + 1,
+          question_count: existingQuestion.question_count + 1,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", existing.id)
+        .eq("id", existingQuestion.id)
+        .select() // Added .select() to return updated data
 
       console.log("[v0] AI Service: Update result:", { updateData, updateError })
     } else {
       // Insert new question
       console.log("[v0] AI Service: Inserting new question")
-      const { data: insertData, error: insertError } = await supabase.from("chatbot_qa").insert({
-        question: question,
-        status: "pending",
-      })
+      const { data: insertData, error: insertError } = await supabase
+        .from("chatbot_qa")
+        .insert({
+          question: question,
+          status: "pending",
+          question_count: 1, // Added explicit question_count
+        })
+        .select() // Added .select() to return inserted data
 
       console.log("[v0] AI Service: Insert result:", { insertData, insertError })
+
+      if (insertError) {
+        console.error("[v0] AI Service: Insert error details:", insertError)
+      }
     }
 
     console.log("[v0] AI Service: Question save operation completed successfully")
