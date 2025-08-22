@@ -295,6 +295,7 @@ router.post("/api/answer", async (req, res) => {
       .from("chatbot_qa")
       .update({
         answer: answer,
+        status: "answered",
         answered_at: new Date().toISOString(),
       })
       .eq("id", id)
