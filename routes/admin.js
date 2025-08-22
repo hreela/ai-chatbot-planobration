@@ -174,9 +174,14 @@ router.get("/", (req, res) => {
                     return;
                 }
                 
-                container.innerHTML = questions.map(q => {
+                console.log("[v0] Questions data:", questions.map(q => ({ id: q.id, question: q.question })));
+                
+                container.innerHTML = questions.map((q, index) => {
                     const isSelected = selectedQuestionId === q.id;
-                    return '<div class="question-item ' + (q.answer ? 'answered' : 'pending') + (isSelected ? ' selected' : '') + '" data-question-id="' + q.id + '">' +
+                    const questionId = q.id || index; // Use index as fallback if ID is missing
+                    console.log("[v0] Rendering question with ID:", questionId, "Question:", q.question);
+                    
+                    return '<div class="question-item ' + (q.answer ? 'answered' : 'pending') + (isSelected ? ' selected' : '') + '" data-question-id="' + questionId + '" data-question-index="' + index + '">' +
                         '<strong>' + escapeHtml(q.question) + '</strong>' +
                         (q.question_count > 1 ? '<span class="badge">' + q.question_count + 'x</span>' : '') +
                         '<div style="font-size: 12px; color: #6b7280; margin-top: 5px;">' + 
@@ -189,9 +194,17 @@ router.get("/", (req, res) => {
                 
                 questionItems.forEach((item, index) => {
                     item.addEventListener('click', function() {
-                        const questionId = parseInt(this.getAttribute('data-question-id'));
-                        console.log("[v0] Question clicked:", questionId, "at index:", index);
-                        selectQuestion(questionId);
+                        const questionId = this.getAttribute('data-question-id');
+                        const questionIndex = parseInt(this.getAttribute('data-question-index'));
+                        console.log("[v0] Question clicked - ID:", questionId, "Index:", questionIndex);
+                        
+                        const actualQuestion = questions[questionIndex];
+                        if (actualQuestion) {
+                            console.log("[v0] Using question from index:", questionIndex, "Question:", actualQuestion.question);
+                            selectQuestion(actualQuestion.id || questionIndex, questionIndex);
+                        } else {
+                            console.error("[v0] Question not found at index:", questionIndex);
+                        }
                     });
                 });
             }
@@ -202,11 +215,17 @@ router.get("/", (req, res) => {
                 return div.innerHTML;
             }
             
-            function selectQuestion(id) {
-                console.log("[v0] selectQuestion called with id:", id);
-                const question = questions.find(q => q.id === id);
+            function selectQuestion(id, index) {
+                console.log("[v0] selectQuestion called with id:", id, "index:", index);
+                
+                let question = questions.find(q => q.id === id);
+                if (!question && typeof index === 'number') {
+                    question = questions[index];
+                    console.log("[v0] Using question from index fallback:", index);
+                }
+                
                 if (!question) {
-                    console.error("[v0] Question not found with id:", id);
+                    console.error("[v0] Question not found with id:", id, "or index:", index);
                     return;
                 }
                 
@@ -214,7 +233,7 @@ router.get("/", (req, res) => {
                 selectedQuestionId = id;
                 renderQuestions();
                 
-                console.log("[v0] Creating answer form for question:", question.question);
+                const questionIdForSave = question.id || index;
                 
                 document.getElementById('answer-section').innerHTML = 
                     '<div><strong>Question:</strong></div>' +
@@ -222,7 +241,7 @@ router.get("/", (req, res) => {
                     '<div><strong>Your Answer:</strong></div>' +
                     '<textarea id="answer-text" placeholder="Type your detailed answer here..." style="margin: 10px 0;">' + (question.answer || '') + '</textarea>' +
                     '<div>' +
-                        '<button onclick="saveAnswer(' + id + ')" id="save-btn">Save Answer</button>' +
+                        '<button onclick="saveAnswer(' + questionIdForSave + ')" id="save-btn">Save Answer</button>' +
                         '<button onclick="clearSelection()" style="background: #6b7280; margin-left: 10px;">Cancel</button>' +
                     '</div>' +
                     '<div id="save-status"></div>';
